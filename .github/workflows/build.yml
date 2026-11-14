@@ -1,0 +1,51 @@
+name: build-apk                    # 工作流名字，Actions 页面显示
+
+on:
+  push:
+    branches: [ main, master ]     # 推这两个分支就跑
+  workflow_dispatch:               # 允许网页上手动点 Run
+
+permissions:
+  contents: read                   # 最小权限，够 checkout + 上传 artifact
+
+jobs:
+  build:
+    runs-on: ubuntu-latest         # 必须 Linux 跑 Android 构建
+    steps:
+      - uses: actions/checkout@v4  # 拉代码
+
+      - name: Set up JDK 17        # AGP 8.x 要求 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK   # 配好 ANDROID_SDK_ROOT + sdkmanager
+        uses: android-actions/setup-android@v3
+
+      - name: Install platform 34  # 显式装，别赌 runner 自带
+        run: |
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+      - name: Prefetch Xposed API jar
+        run: |
+          mkdir -p app/libs
+          curl -fsSL --retry 3 --retry-delay 2 \
+            -o app/libs/api-82.jar \
+            https://api.xposed.info/de/robv/android/xposed/api/82/api-82.jar \
+            && echo "jar ok" || echo "fallback to maven repo"
+
+      - name: Set up Gradle         # 没有 wrapper jar，用 action 装 Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'     # AGP 8.5 要求 Gradle ≥ 8.7
+
+      - name: Build                 # 注意用的是 gradle，不是 ./gradlew
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ouc-tweaker-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
