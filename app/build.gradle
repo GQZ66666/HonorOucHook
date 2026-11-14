@@ -1,0 +1,37 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.lead.ouctweaker'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.lead.ouctweaker"
+        minSdk 29
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // 本地 jar 优先（CI 会预下载），否则回退到官方 maven 仓库
+    def localJar = file('libs/api-82.jar')
+    if (localJar.exists()) {
+        compileOnly files(localJar)
+    } else {
+        compileOnly 'de.robv.android.xposed:api:82'
+    }
+}
